@@ -1,0 +1,24 @@
+[project]
+name = "silent-key"
+version = "0.1.0"
+description = "A New Age Identity Management Application for Everyone"
+authors = [
+    {name = "ShashwatAcharya",email = "shashwatacharya1@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "django (>=6.0.1,<7.0.0)"
+]
+
+[dependency-groups]
+dev = [
+    "django (>=6.0.1,<7.0.0)"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false

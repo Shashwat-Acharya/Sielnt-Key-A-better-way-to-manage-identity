@@ -1,0 +1,218 @@
+# ============================
+# SilentKey - .gitignore
+# ============================
+
+# ----------------------------
+# OS / Editor / IDE
+# ----------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.vscode/
+.idea/
+*.iml
+
+# ----------------------------
+# Python (general)
+# ----------------------------
+*/__pycache__/*
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.pyre/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ----------------------------
+# Django / Python backend
+# ----------------------------
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Django static/media (keep if you want tracked, otherwise ignore)
+staticfiles/
+media/
+
+# Environment files (SECRETS!)
+.env
+.env.*
+!.env.example
+
+# ----------------------------
+# Node / Web frontend
+# ----------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.next/
+out/
+dist/
+.cache/
+
+# SvelteKit / Vite / Vue / Angular build outputs
+.svelte-kit/
+.vite/
+.nuxt/
+.angular/
+.parcel-cache/
+
+# ----------------------------
+# Desktop app (PyQt / Qt / QML)
+# ----------------------------
+*.qmlc
+*.jsc
+*.pyi
+*.spec
+
+# Qt Creator
+*.pro.user
+*.qtc
+*.qmlproject.user
+
+# PyInstaller build outputs
+*.exe
+*.app
+*.dmg
+*.msi
+*.deb
+*.rpm
+*.AppImage
+
+# ----------------------------
+# C++ / CMake
+# ----------------------------
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.dylib
+*.exe
+*.out
+
+# ----------------------------
+# Logs (never commit logs)
+# ----------------------------
+logs/
+*.log.*
+
+# ----------------------------
+# Databases / Dumps (IMPORTANT)
+# ----------------------------
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.sqlite-journal
+
+# PostgreSQL / MySQL / general dumps
+*.sql
+*.dump
+*.bak
+*.backup
+*.pgsql
+*.psql
+*.mysql
+*.mariadb
+
+# DB folders (if created accidentally)
+data/
+database/
+db/
+postgres-data/
+mysql-data/
+redis-data/
+
+# ----------------------------
+# Docker / Podman runtime files
+# ----------------------------
+*.pid
+*.sock
+
+# Local docker volumes/configs
+.docker/
+podman-volumes/
+docker-volumes/
+
+# ----------------------------
+# Secrets / Keys / Certificates
+# ----------------------------
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+*.jks
+*.keystore
+*.ovpn
+
+# ----------------------------
+# Mobile (Android / iOS)
+# ----------------------------
+# Android
+*.apk
+*.aab
+*.keystore
+*.jks
+.gradle/
+local.properties
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# iOS
+DerivedData/
+*.xcuserstate
+*.xcuserdata/
+*.ipa
+*.dSYM/
+*.mobileprovision
+
+# ----------------------------
+# Terraform / Cloud
+# ----------------------------
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+
+# ----------------------------
+# Misc
+# ----------------------------
+*.swp
+*.swo
+*.tmp
+*.temp
