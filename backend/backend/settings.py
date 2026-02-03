@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -73,11 +74,30 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': BASE_DIR / 'db.postgresql',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "silentkey_identity",
+        "USER": "sk_app_user",
+        "PASSWORD": os.environ["SK_DB_PASSWORD"],
+        "HOST": "db",
+        "PORT": 5432,
+        "OPTIONS": {
+            "options": "-c search_path=identity"
+        }
+    },
+    "audit": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "silentkey_audit",
+        "USER": "sk_app_user",
+        "PASSWORD": os.environ["SK_DB_PASSWORD"],
+        "HOST": "db",
+        "PORT": 5432,
+        "OPTIONS": {
+            "options": "-c search_path=audit"
+        }
     }
 }
+
 
 
 # Password validation

@@ -216,3 +216,6 @@ crash.log
 *.swo
 *.tmp
 *.temp
+
+# Allow infrastructure bootstrap SQL
+!infra\postgres\bootstarp.sql
