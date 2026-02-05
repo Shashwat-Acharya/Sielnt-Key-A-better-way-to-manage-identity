@@ -6,15 +6,17 @@ authors = [
     {name = "ShashwatAcharya",email = "shashwatacharya1@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "django (>=6.0.1,<7.0.0)",
-    "psycopg (>=3.3.2,<4.0.0)"
+    "psycopg (>=3.3.2,<4.0.0)",
+    "sqlalchemy (>=2.0.46,<3.0.0)"
 ]
 
 [dependency-groups]
 dev = [
-    "django (>=6.0.1,<7.0.0)"
+    "django (>=6.0.1,<7.0.0)",
+    "pytest (>=9.0.2,<10.0.0)"
 ]
 
 [build-system]
