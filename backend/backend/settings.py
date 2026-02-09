@@ -78,8 +78,8 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "silentkey_identity",
         "USER": "sk_app_user",
-        "PASSWORD": os.environ["SK_DB_PASSWORD"],
-        "HOST": "db",
+        "PASSWORD": os.environ.get("SK_DB_PASSWORD", ""),
+        "HOST": "127.0.0.1",  # "localhost" for local dev, "db" for Docker
         "PORT": 5432,
         "OPTIONS": {
             "options": "-c search_path=identity"
@@ -89,15 +89,14 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "silentkey_audit",
         "USER": "sk_app_user",
-        "PASSWORD": os.environ["SK_DB_PASSWORD"],
-        "HOST": "db",
+        "PASSWORD": os.environ.get("SK_DB_PASSWORD", ""),
+        "HOST": "127.0.0.1",  # "localhost" for local dev, "db" for Docker
         "PORT": 5432,
         "OPTIONS": {
             "options": "-c search_path=audit"
         }
     }
 }
-
 
 
 # Password validation
