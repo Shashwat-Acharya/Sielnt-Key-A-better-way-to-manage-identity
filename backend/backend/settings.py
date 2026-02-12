@@ -10,19 +10,19 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-import os
-from pathlib import Path
+import environs
+from pathlib import Path 
 
+# Load environment variables from .env file
+env = environs.Env()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-d0ufrw09$!xag#r%(0z7qy=$)n#ds+0kxxi4#()=jd0&&n07d1'
-
+SECRET_KEY = environs.Env()
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -67,7 +67,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'backend.wsgi.application'
+ASGI_APPLICATION = 'backend.asgi.application'
 
 
 # Database
@@ -78,8 +78,8 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "silentkey_identity",
         "USER": "sk_app_user",
-        "PASSWORD": os.environ.get("SK_DB_PASSWORD", ""),
-        "HOST": "127.0.0.1",  # "localhost" for local dev, "db" for Docker
+        "PASSWORD": env.str("sk_app_password","Shashwat@2003"),
+        "HOST": "localhost",  # "localhost" for local dev, "db" for Docker
         "PORT": 5432,
         "OPTIONS": {
             "options": "-c search_path=identity"
@@ -89,8 +89,8 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "silentkey_audit",
         "USER": "sk_app_user",
-        "PASSWORD": os.environ.get("SK_DB_PASSWORD", ""),
-        "HOST": "127.0.0.1",  # "localhost" for local dev, "db" for Docker
+        "PASSWORD": env.str("sk_app_password","Shashwat@2003"),
+        "HOST": "localhost",  # "localhost" for local dev, "db" for Docker
         "PORT": 5432,
         "OPTIONS": {
             "options": "-c search_path=audit"
