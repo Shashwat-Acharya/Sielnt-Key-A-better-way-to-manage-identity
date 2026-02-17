@@ -16,8 +16,15 @@ if (!(Test-Path $SqlFile)) {
 
 # Load .env manually (PowerShell has no native dotenv)
 Get-Content $EnvFile | ForEach-Object {
+    # Skip empty lines and comments
+    if ($_ -match "^\s*#" -or $_ -match "^\s*$") {
+        return
+    }
+    # Match key=value, trim quotes from value
     if ($_ -match "^\s*([^#=]+)=(.+)$") {
-        [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+        $key = $matches[1].Trim()
+        $value = $matches[2].Trim().Trim('"').Trim("'")
+        [System.Environment]::SetEnvironmentVariable($key, $value)
     }
 }
 

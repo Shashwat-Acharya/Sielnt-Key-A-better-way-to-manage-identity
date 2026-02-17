@@ -18,9 +18,19 @@ if [[ ! -f "$SQL_FILE" ]]; then
   exit 1
 fi
 
-# Load env vars
+# Load env vars and strip quotes
 set -a
-source "$ENV_FILE"
+while IFS='=' read -r key value; do
+  # Skip empty lines and comments
+  [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+  
+  # Remove leading/trailing whitespace and quotes
+  key=$(echo "$key" | xargs)
+  value=$(echo "$value" | xargs | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+  
+  # Export the variable
+  export "$key=$value"
+done < "$ENV_FILE"
 set +a
 
 # Validate required vars
@@ -31,9 +41,15 @@ REQUIRED_VARS=(
 )
 
 for var in "${REQUIRED_VARS[@]}"; do
-  if [[ -z "${!var:-}" ]]; then
+  value="${!var:-}"
+  if [[ -z "$value" ]]; then
     echo "[ERROR] Environment variable $var is not set"
     exit 1
+  fi
+  
+  # Check minimum password length
+  if [[ ${#value} -lt 12 ]]; then
+    echo "[WARNING] $var is shorter than 12 characters"
   fi
 done
 
