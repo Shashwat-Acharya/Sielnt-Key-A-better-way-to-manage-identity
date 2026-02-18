@@ -99,7 +99,7 @@ DATABASES = {
         "PORT": env.int("DB_PORT", 5432),
         "CONN_MAX_AGE": 600,  # Connection pooling (10 minutes)
         "OPTIONS": {
-            "options": "-c search_path=identity",
+            "options": "-c search_path=identity,public",
             "connect_timeout": 10,
         }
     },
@@ -112,7 +112,7 @@ DATABASES = {
         "PORT": env.int("DB_PORT", 5432),
         "CONN_MAX_AGE": 600,
         "OPTIONS": {
-            "options": "-c search_path=audit",
+            "options": "-c search_path=audit,public",
             "connect_timeout": 10,
         }
     }
