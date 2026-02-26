@@ -43,7 +43,7 @@ class BiometricTemplate(models.Model):
         ('FACIAL', 'Facial Recognition'),
         ('IRIS', 'Iris Scan'),
         ('VOICE', 'Voice Recognition'),
-        ('PALM', 'Palm Vein'),
+        ('PALM', 'Palm Vein')
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
