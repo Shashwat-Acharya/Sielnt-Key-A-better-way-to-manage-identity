@@ -28,23 +28,52 @@ Get-Content $EnvFile | ForEach-Object {
     }
 }
 
+function Get-EnvValue {
+    param(
+        [string]$Primary,
+        [string]$Legacy
+    )
+
+    $primaryValue = [Environment]::GetEnvironmentVariable($Primary)
+    if ($primaryValue) {
+        return $primaryValue
+    }
+
+    $legacyValue = [Environment]::GetEnvironmentVariable($Legacy)
+    if ($legacyValue) {
+        [System.Environment]::SetEnvironmentVariable($Primary, $legacyValue)
+        return $legacyValue
+    }
+
+    return $null
+}
+
+$AppPassword = Get-EnvValue -Primary "DB_PASSWORD" -Legacy "sk_app_password"
+$MigrationPassword = Get-EnvValue -Primary "MIGRATION_DB_PASSWORD" -Legacy "sk_migration_password"
+$ReadonlyPassword = Get-EnvValue -Primary "AUDIT_DB_PASSWORD" -Legacy "sk_readonly_password"
+
 $RequiredVars = @(
-    "sk_app_password",
-    "sk_migration_password",
-    "sk_readonly_password"
+    @{ Name = "DB_PASSWORD"; Value = $AppPassword },
+    @{ Name = "MIGRATION_DB_PASSWORD"; Value = $MigrationPassword },
+    @{ Name = "AUDIT_DB_PASSWORD"; Value = $ReadonlyPassword }
 )
 
 foreach ($var in $RequiredVars) {
-    if (-not [Environment]::GetEnvironmentVariable($var)) {
-        Write-Error "Environment variable $var is not set"
+    if (-not $var.Value) {
+        Write-Error "Environment variable $($var.Name) is not set"
         exit 1
     }
+}
+
+$SuperPassword = Get-EnvValue -Primary "PG_SUPER_PASS" -Legacy "PG_SUPER_PASS"
+if ($SuperPassword) {
+    $env:PGPASSWORD = $SuperPassword
 }
 
 Write-Host "[INFO] Running SilentKey DB bootstrap..."
 
 # Pass passwords as PostgreSQL custom settings (my.* namespace) via PGOPTIONS
-$env:PGOPTIONS = "-c my.sk_app_password='$($env:sk_app_password)' -c my.sk_migration_password='$($env:sk_migration_password)' -c my.sk_readonly_password='$($env:sk_readonly_password)'"
+$env:PGOPTIONS = "-c my.sk_app_password='$AppPassword' -c my.sk_migration_password='$MigrationPassword' -c my.sk_readonly_password='$ReadonlyPassword'"
 
 psql -U postgres -f $SqlFile
 

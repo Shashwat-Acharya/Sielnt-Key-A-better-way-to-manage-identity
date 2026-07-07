@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import MinLengthValidator, URLValidator
 from django.utils import timezone
 import uuid
 
@@ -200,6 +199,260 @@ class Identity(models.Model):
 
     def __str__(self):
         return f"{self.display_name} ({self.identity_type})"
+
+
+class IdentityKeyPair(models.Model):
+    """
+    Stores the public identity key material for a user.
+
+    The roadmap treats biometric-derived access as research-only, so the key pair
+    is modeled as a standalone cryptographic asset rather than embedding it in a
+    biometric record.
+    """
+    KEY_ALGORITHMS = [
+        ('ED25519', 'Ed25519'),
+        ('X25519', 'X25519'),
+        ('RSA', 'RSA'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='identity_keypair')
+    key_algorithm = models.CharField(max_length=20, choices=KEY_ALGORITHMS, default='ED25519')
+    public_key = models.TextField(help_text="Public key material used for verification")
+    key_fingerprint = models.CharField(max_length=128, unique=True, db_index=True)
+    private_key_reference = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Reference to sealed private key material",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    rotated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'identity_key_pairs'
+        verbose_name = 'Identity Key Pair'
+        verbose_name_plural = 'Identity Key Pairs'
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['key_fingerprint']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.key_algorithm}"
+
+
+class UserDevice(models.Model):
+    """
+    Represents a trusted or pending device that can participate in identity flows.
+    """
+    TRUST_LEVELS = [
+        (0, 'Untrusted'),
+        (1, 'Recognized'),
+        (2, 'Trusted'),
+        (3, 'High Trust'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='devices')
+    device_name = models.CharField(max_length=255)
+    device_identifier = models.CharField(max_length=255, unique=True, db_index=True)
+    device_public_key = models.TextField(blank=True, help_text="Device public key or attestation material")
+    platform = models.CharField(max_length=50, blank=True)
+    trust_level = models.IntegerField(default=0, choices=TRUST_LEVELS, db_index=True)
+    is_trusted = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_devices'
+        verbose_name = 'User Device'
+        verbose_name_plural = 'User Devices'
+        indexes = [
+            models.Index(fields=['user', 'is_trusted']),
+            models.Index(fields=['device_identifier']),
+            models.Index(fields=['trust_level']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.device_name}"
+
+
+class PairingSession(models.Model):
+    """
+    Represents a short-lived QR pairing session.
+
+    The QR should carry only the session identifier; all other context stays on the server.
+    """
+    SESSION_STATUSES = [
+        ('PENDING', 'Pending'),
+        ('SCANNED', 'Scanned'),
+        ('VERIFIED', 'Verified'),
+        ('COMPLETED', 'Completed'),
+        ('EXPIRED', 'Expired'),
+        ('REVOKED', 'Revoked'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pairing_sessions')
+    session_token = models.CharField(max_length=255, unique=True, db_index=True)
+    status = models.CharField(max_length=20, choices=SESSION_STATUSES, default='PENDING', db_index=True)
+    requested_device_name = models.CharField(max_length=255, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    paired_device = models.ForeignKey(
+        UserDevice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pairing_sessions',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    scanned_at = models.DateTimeField(null=True, blank=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'pairing_sessions'
+        verbose_name = 'Pairing Session'
+        verbose_name_plural = 'Pairing Sessions'
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['session_token']),
+            models.Index(fields=['expires_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.session_token}"
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+
+class AuthenticationChallenge(models.Model):
+    """
+    Stores a single challenge-response exchange used for identity verification.
+    """
+    CHALLENGE_TYPES = [
+        ('SIGNATURE', 'Signature Verification'),
+        ('QR_CONFIRMATION', 'QR Confirmation'),
+        ('MFA_CONFIRMATION', 'MFA Confirmation'),
+    ]
+
+    CHALLENGE_STATUSES = [
+        ('PENDING', 'Pending'),
+        ('ISSUED', 'Issued'),
+        ('VERIFIED', 'Verified'),
+        ('FAILED', 'Failed'),
+        ('EXPIRED', 'Expired'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='authentication_challenges')
+    device = models.ForeignKey(
+        UserDevice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='authentication_challenges',
+    )
+    pairing_session = models.ForeignKey(
+        PairingSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='authentication_challenges',
+    )
+    challenge_token = models.CharField(max_length=255, unique=True, db_index=True)
+    challenge_type = models.CharField(max_length=20, choices=CHALLENGE_TYPES, db_index=True)
+    status = models.CharField(max_length=20, choices=CHALLENGE_STATUSES, default='PENDING', db_index=True)
+    challenge_payload = models.JSONField(default=dict, blank=True)
+    expected_public_key = models.TextField(blank=True)
+    verification_metadata = models.JSONField(default=dict, blank=True)
+    issued_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'authentication_challenges'
+        verbose_name = 'Authentication Challenge'
+        verbose_name_plural = 'Authentication Challenges'
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['challenge_token']),
+            models.Index(fields=['expires_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.challenge_type} ({self.status})"
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+
+class AuthenticationSession(models.Model):
+    """
+    Tracks a verified identity session for a device.
+
+    This is the roadmap-aligned session object; the existing Session model is
+    retained for backward compatibility with earlier code paths.
+    """
+    SESSION_STATUS = [
+        ('ACTIVE', 'Active'),
+        ('EXPIRED', 'Expired'),
+        ('REVOKED', 'Revoked'),
+        ('INVALID', 'Invalid'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='authentication_sessions')
+    device = models.ForeignKey(
+        UserDevice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='authentication_sessions',
+    )
+    challenge = models.ForeignKey(
+        AuthenticationChallenge,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='authentication_sessions',
+    )
+    session_token = models.CharField(max_length=255, unique=True, db_index=True)
+    refresh_token = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=SESSION_STATUS, default='ACTIVE', db_index=True)
+    authenticated_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    last_activity = models.DateTimeField(auto_now=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    is_mfa_verified = models.BooleanField(default=False, help_text="Whether MFA was completed for this session")
+
+    class Meta:
+        db_table = 'authentication_sessions'
+        verbose_name = 'Authentication Session'
+        verbose_name_plural = 'Authentication Sessions'
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['session_token']),
+            models.Index(fields=['expires_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.session_token}"
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    def revoke(self):
+        self.status = 'REVOKED'
+        self.revoked_at = timezone.now()
+        self.save(update_fields=['status', 'revoked_at'])
 
 
 class IdentityVerification(models.Model):

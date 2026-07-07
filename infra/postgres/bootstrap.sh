@@ -33,15 +33,30 @@ while IFS='=' read -r key value; do
 done < "$ENV_FILE"
 set +a
 
+if [[ -n "${PG_SUPER_PASS:-}" ]]; then
+  export PGPASSWORD="$PG_SUPER_PASS"
+fi
+
 # Validate required vars
 REQUIRED_VARS=(
+  DB_PASSWORD
+  MIGRATION_DB_PASSWORD
+  AUDIT_DB_PASSWORD
+)
+
+LEGACY_VARS=(
   sk_app_password
   sk_migration_password
   sk_readonly_password
 )
 
-for var in "${REQUIRED_VARS[@]}"; do
+for index in "${!REQUIRED_VARS[@]}"; do
+  var="${REQUIRED_VARS[$index]}"
+  legacyVar="${LEGACY_VARS[$index]}"
   value="${!var:-}"
+  if [[ -z "$value" ]]; then
+    value="${!legacyVar:-}"
+  fi
   if [[ -z "$value" ]]; then
     echo "[ERROR] Environment variable $var is not set"
     exit 1
@@ -51,12 +66,13 @@ for var in "${REQUIRED_VARS[@]}"; do
   if [[ ${#value} -lt 12 ]]; then
     echo "[WARNING] $var is shorter than 12 characters"
   fi
+  export "$var=$value"
 done
 
 echo "[INFO] Running SilentKey DB bootstrap..."
 
 # Pass passwords as PostgreSQL custom settings (my.* namespace) via PGOPTIONS
-PGOPTIONS="-c my.sk_app_password='$sk_app_password' -c my.sk_migration_password='$sk_migration_password' -c my.sk_readonly_password='$sk_readonly_password'" \
+PGOPTIONS="-c my.sk_app_password='$DB_PASSWORD' -c my.sk_migration_password='$MIGRATION_DB_PASSWORD' -c my.sk_readonly_password='$AUDIT_DB_PASSWORD'" \
   psql -U postgres -f "$SQL_FILE"
 
 if [[ $? -ne 0 ]]; then

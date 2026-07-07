@@ -22,11 +22,14 @@ class PostgresSchemaValidator:
     def __init__(self):
         self.test_results: List[Tuple[str, bool, str]] = []
         self.passwords = {
-            "sk_app_password": os.environ.get("sk_app_password"),
-            "sk_migration_password": os.environ.get("sk_migration_password"),
-            "sk_readonly_password": os.environ.get("sk_readonly_password"),
+            "sk_app_password": os.environ.get("sk_app_password") or os.environ.get("DB_PASSWORD"),
+            "sk_migration_password": os.environ.get("sk_migration_password") or os.environ.get("MIGRATION_DB_PASSWORD"),
+            "sk_readonly_password": os.environ.get("sk_readonly_password") or os.environ.get("AUDIT_DB_PASSWORD"),
             "PG_SUPER_PASS": os.environ.get("PG_SUPER_PASS"),
         }
+        self.host = os.environ.get("DB_HOST", "localhost")
+        self.identity_db = os.environ.get("DB_NAME", "silentkey_identity")
+        self.audit_db = os.environ.get("AUDIT_DB_NAME", "silentkey_audit")
 
     def log_test(self, test_name: str, passed: bool, message: str = ""):
         """Log test result"""
@@ -42,7 +45,7 @@ class PostgresSchemaValidator:
             dbname="postgres",
             user="postgres",
             password=self.passwords["PG_SUPER_PASS"],
-            host="localhost",
+            host=self.host,
             autocommit=True,
         )
 
@@ -52,7 +55,7 @@ class PostgresSchemaValidator:
             dbname=dbname,
             user=user,
             password=password,
-            host="localhost",
+            host=self.host,
             autocommit=True,
         )
 
@@ -61,7 +64,7 @@ class PostgresSchemaValidator:
         print(f"\n{BLUE}=== Testing Database Existence ==={RESET}")
         cur = conn.cursor()
 
-        databases = ["silentkey_identity", "silentkey_audit"]
+        databases = [self.identity_db, self.audit_db]
         for db in databases:
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db,))
             exists = cur.fetchone() is not None
@@ -77,7 +80,7 @@ class PostgresSchemaValidator:
         roles = [
             ("sk_app_user", "Application user role"),
             ("sk_migration_user", "Migration user role"),
-            ("sk_readonly_audit", "Read-only audit role"),
+            ("sk_readonly_user", "Read-only audit role"),
         ]
 
         for role, description in roles:
@@ -125,7 +128,7 @@ class PostgresSchemaValidator:
                 "silentkey_identity",
             ),
             (
-                "sk_readonly_audit",
+                "sk_readonly_user",
                 self.passwords["sk_readonly_password"],
                 "silentkey_audit",
             ),
@@ -158,7 +161,7 @@ class PostgresSchemaValidator:
             "silentkey_audit": [
                 "sk_app_user",
                 "sk_migration_user",
-                "sk_readonly_audit",
+                "sk_readonly_user",
             ],
         }
 
@@ -301,27 +304,27 @@ class PostgresSchemaValidator:
         try:
             conn = self.get_user_connection(
                 "silentkey_audit",
-                "sk_readonly_audit",
+                "sk_readonly_user",
                 self.passwords["sk_readonly_password"],
             )
             cur = conn.cursor()
 
             cur.execute(
-                "SELECT has_schema_privilege('sk_readonly_audit', 'audit', 'USAGE')"
+                "SELECT has_schema_privilege('sk_readonly_user', 'audit', 'USAGE')"
             )
             has_usage = cur.fetchone()[0]
             self.log_test(
-                "sk_readonly_audit has USAGE on audit schema",
+                "sk_readonly_user has USAGE on audit schema",
                 has_usage,
                 "Can access schema",
             )
 
             cur.execute(
-                "SELECT has_schema_privilege('sk_readonly_audit', 'audit', 'CREATE')"
+                "SELECT has_schema_privilege('sk_readonly_user', 'audit', 'CREATE')"
             )
             has_create = cur.fetchone()[0]
             self.log_test(
-                "sk_readonly_audit CANNOT CREATE in audit schema",
+                "sk_readonly_user CANNOT CREATE in audit schema",
                 not has_create,
                 "Security: Prevented from creating objects",
             )
@@ -366,7 +369,7 @@ class PostgresSchemaValidator:
         for db in databases:
             cur.execute(
                 """
-                SELECT pg_catalog.has_database_privilege('PUBLIC', %s, 'CONNECT')
+                SELECT pg_catalog.has_database_privilege('public', %s, 'CONNECT')
             """,
                 (db,),
             )
@@ -440,7 +443,7 @@ class PostgresSchemaValidator:
             self.log_test(
                 "Default privileges set for audit schema tables",
                 has_default_privs,
-                "sk_app_user gets INSERT, sk_readonly_audit gets SELECT",
+                "sk_app_user gets INSERT, sk_readonly_user gets SELECT",
             )
 
             cur.close()
@@ -486,12 +489,21 @@ def main():
     # Check required environment variables
     required_vars = [
         "PG_SUPER_PASS",
-        "sk_app_password",
-        "sk_migration_password",
-        "sk_readonly_password",
+        "DB_PASSWORD",
+        "MIGRATION_DB_PASSWORD",
+        "AUDIT_DB_PASSWORD",
     ]
 
-    missing_vars = [var for var in required_vars if not os.environ.get(var)]
+    alias_map = {
+        "DB_PASSWORD": "sk_app_password",
+        "MIGRATION_DB_PASSWORD": "sk_migration_password",
+        "AUDIT_DB_PASSWORD": "sk_readonly_password",
+    }
+
+    missing_vars = [
+        var for var in required_vars
+        if not os.environ.get(var) and not os.environ.get(alias_map.get(var, ""))
+    ]
     if missing_vars:
         print(f"{RED}Error: Missing environment variables:{RESET}")
         for var in missing_vars:

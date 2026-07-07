@@ -220,4 +220,3 @@ crash.log
 *.lock
 
 # Allow infrastructure bootstrap SQL
-!infra\postgres\bootstarp.sql

@@ -28,9 +28,9 @@ def validate_env():
     
     # Required variables
     required_vars = [
-        'sk_app_password',
-        'sk_migration_password',
-        'sk_readonly_password',
+        'DB_PASSWORD',
+        'MIGRATION_DB_PASSWORD',
+        'AUDIT_DB_PASSWORD',
         'SECRET_KEY',
     ]
     
@@ -57,9 +57,13 @@ def validate_env():
     
     # Validate passwords are not defaults
     default_indicators = ['CHANGE_ME', 'password', 'Password123', 'admin']
-    for var in ['sk_app_password', 'sk_migration_password', 'sk_readonly_password']:
+    for var, legacy in [
+        ('DB_PASSWORD', 'sk_app_password'),
+        ('MIGRATION_DB_PASSWORD', 'sk_migration_password'),
+        ('AUDIT_DB_PASSWORD', 'sk_readonly_password'),
+    ]:
         try:
-            value = env.str(var)
+            value = env.str(var) if env.str(var, default='') else env.str(legacy)
             if any(indicator in value for indicator in default_indicators):
                 errors.append(f"{var} appears to be a default/weak password")
             if len(value) < 12:
